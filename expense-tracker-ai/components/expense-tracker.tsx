@@ -111,10 +111,12 @@ export default function ExpenseTracker() {
     setExpenses((items) => items.filter((item) => item.id !== expense.id)); setMenuId(null); showToast("Expense deleted");
   }
   function exportCsv() {
-    if (!filtered.length) { showToast("No expenses to export"); return; }
     const escape = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`;
-    const csv = ["Date,Description,Category,Amount", ...filtered.map((e) => [escape(e.date), escape(e.description), escape(e.category), e.amount.toFixed(2)].join(","))].join("\n");
-    const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); link.download = `pennywise-expenses-${today()}.csv`; link.click(); URL.revokeObjectURL(link.href); showToast("CSV exported");
+    const csv = ["Date,Category,Amount,Description", ...expenses.map((e) => [escape(e.date), escape(e.category), e.amount.toFixed(2), escape(e.description)].join(","))].join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = `pennywise-expenses-${today()}.csv`; link.click();
+    URL.revokeObjectURL(url); showToast("CSV exported");
   }
   function clearFilters() { setSearch(""); setCategory("All"); setFrom(""); setTo(""); }
   const filtersActive = category !== "All" || !!from || !!to;
@@ -153,7 +155,7 @@ export default function ExpenseTracker() {
 
         <section className="mt-5 overflow-visible rounded-2xl border border-[#e5e8ef] bg-white shadow-[0_2px_12px_rgba(20,30,55,.035)]">
           <div className="border-b border-[#edf0f4] p-5 sm:p-6">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h2 className="font-bold tracking-[-.02em]">Recent expenses</h2><p className="mt-1 text-xs text-[#9aa3b5]">{filtered.length} of {expenses.length} transactions</p></div><button onClick={exportCsv} className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe3eb] px-3 text-xs font-semibold text-[#526074] transition hover:bg-[#f7f8fb]"><Download className="h-4 w-4" />Export CSV</button></div>
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h2 className="font-bold tracking-[-.02em]">Recent expenses</h2><p className="mt-1 text-xs text-[#9aa3b5]">{filtered.length} of {expenses.length} transactions</p></div><button onClick={exportCsv} className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe3eb] px-3 text-xs font-semibold text-[#526074] transition hover:bg-[#f7f8fb]"><Download className="h-4 w-4" />Export Data</button></div>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9da6b6]" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search expenses..." className="focus-ring h-10 w-full rounded-lg border border-[#dfe3eb] bg-[#fafbfc] pl-9 pr-3 text-sm placeholder:text-[#aab1bf]" /></label><button onClick={() => setFiltersOpen(!filtersOpen)} className={`flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition ${filtersActive ? "border-[#8796ef] bg-[#f3f5ff] text-[#3758f9]" : "border-[#dfe3eb] text-[#5d687b] hover:bg-[#f7f8fb]"}`}><Filter className="h-4 w-4" />Filters{filtersActive && <span className="h-1.5 w-1.5 rounded-full bg-[#3758f9]" />}</button></div>
             {filtersOpen && <div className="animate-enter mt-3 grid gap-3 rounded-xl bg-[#f7f8fb] p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"><Field label="Category"><select value={category} onChange={(e) => setCategory(e.target.value as Category | "All")} className="focus-ring h-9 w-full rounded-lg border border-[#dfe3eb] bg-white px-2 text-xs"><option>All</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field><Field label="From"><input type="date" value={from} max={to || today()} onChange={(e) => setFrom(e.target.value)} className="focus-ring h-9 w-full rounded-lg border border-[#dfe3eb] bg-white px-2 text-xs" /></Field><Field label="To"><input type="date" value={to} min={from} max={today()} onChange={(e) => setTo(e.target.value)} className="focus-ring h-9 w-full rounded-lg border border-[#dfe3eb] bg-white px-2 text-xs" /></Field><button onClick={clearFilters} className="self-end px-2 pb-2 text-xs font-semibold text-[#657087] hover:text-[#3758f9]">Clear</button></div>}
           </div>
