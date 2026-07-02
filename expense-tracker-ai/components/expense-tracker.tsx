@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, Check, Close, Dots, Download, Edit, Filter, Plus, Search, Trash, Trend, Wallet } from "./icons";
+import ExportDialog from "./export-dialog";
 
 const CATEGORIES = ["Food", "Transportation", "Entertainment", "Shopping", "Bills", "Other"] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -46,6 +47,7 @@ export default function ExpenseTracker() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,12 +112,6 @@ export default function ExpenseTracker() {
     if (!window.confirm(`Delete “${expense.description}”? This cannot be undone.`)) return;
     setExpenses((items) => items.filter((item) => item.id !== expense.id)); setMenuId(null); showToast("Expense deleted");
   }
-  function exportCsv() {
-    if (!filtered.length) { showToast("No expenses to export"); return; }
-    const escape = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`;
-    const csv = ["Date,Description,Category,Amount", ...filtered.map((e) => [escape(e.date), escape(e.description), escape(e.category), e.amount.toFixed(2)].join(","))].join("\n");
-    const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); link.download = `pennywise-expenses-${today()}.csv`; link.click(); URL.revokeObjectURL(link.href); showToast("CSV exported");
-  }
   function clearFilters() { setSearch(""); setCategory("All"); setFrom(""); setTo(""); }
   const filtersActive = category !== "All" || !!from || !!to;
 
@@ -153,7 +149,7 @@ export default function ExpenseTracker() {
 
         <section className="mt-5 overflow-visible rounded-2xl border border-[#e5e8ef] bg-white shadow-[0_2px_12px_rgba(20,30,55,.035)]">
           <div className="border-b border-[#edf0f4] p-5 sm:p-6">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h2 className="font-bold tracking-[-.02em]">Recent expenses</h2><p className="mt-1 text-xs text-[#9aa3b5]">{filtered.length} of {expenses.length} transactions</p></div><button onClick={exportCsv} className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe3eb] px-3 text-xs font-semibold text-[#526074] transition hover:bg-[#f7f8fb]"><Download className="h-4 w-4" />Export CSV</button></div>
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h2 className="font-bold tracking-[-.02em]">Recent expenses</h2><p className="mt-1 text-xs text-[#9aa3b5]">{filtered.length} of {expenses.length} transactions</p></div><button onClick={() => setExportOpen(true)} className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#dfe3eb] px-3 text-xs font-semibold text-[#526074] transition hover:bg-[#f7f8fb]"><Download className="h-4 w-4" />Export data</button></div>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9da6b6]" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search expenses..." className="focus-ring h-10 w-full rounded-lg border border-[#dfe3eb] bg-[#fafbfc] pl-9 pr-3 text-sm placeholder:text-[#aab1bf]" /></label><button onClick={() => setFiltersOpen(!filtersOpen)} className={`flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition ${filtersActive ? "border-[#8796ef] bg-[#f3f5ff] text-[#3758f9]" : "border-[#dfe3eb] text-[#5d687b] hover:bg-[#f7f8fb]"}`}><Filter className="h-4 w-4" />Filters{filtersActive && <span className="h-1.5 w-1.5 rounded-full bg-[#3758f9]" />}</button></div>
             {filtersOpen && <div className="animate-enter mt-3 grid gap-3 rounded-xl bg-[#f7f8fb] p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"><Field label="Category"><select value={category} onChange={(e) => setCategory(e.target.value as Category | "All")} className="focus-ring h-9 w-full rounded-lg border border-[#dfe3eb] bg-white px-2 text-xs"><option>All</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field><Field label="From"><input type="date" value={from} max={to || today()} onChange={(e) => setFrom(e.target.value)} className="focus-ring h-9 w-full rounded-lg border border-[#dfe3eb] bg-white px-2 text-xs" /></Field><Field label="To"><input type="date" value={to} min={from} max={today()} onChange={(e) => setTo(e.target.value)} className="focus-ring h-9 w-full rounded-lg border border-[#dfe3eb] bg-white px-2 text-xs" /></Field><button onClick={clearFilters} className="self-end px-2 pb-2 text-xs font-semibold text-[#657087] hover:text-[#3758f9]">Clear</button></div>}
           </div>
@@ -166,6 +162,7 @@ export default function ExpenseTracker() {
         <div className="flex items-center justify-between border-b border-[#edf0f4] px-6 py-5"><div><h2 id="dialog-title" className="text-lg font-bold">{editing ? "Edit expense" : "Add an expense"}</h2><p className="mt-1 text-xs text-[#929bad]">{editing ? "Update the transaction details below." : "Record a new transaction in your tracker."}</p></div><button aria-label="Close" onClick={closeModal} className="grid h-9 w-9 place-items-center rounded-full text-[#7f899a] hover:bg-[#f3f4f7]"><Close className="h-5 w-5" /></button></div>
         <form onSubmit={submit} noValidate className="p-6"><div className="grid gap-5 sm:grid-cols-2"><FormField label="Date" error={errors.date}><input type="date" value={form.date} max={today()} onChange={(e) => setForm({ ...form, date: e.target.value })} className={inputClass(!!errors.date)} /></FormField><FormField label="Amount" error={errors.amount}><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#818b9c]">$</span><input inputMode="decimal" type="number" min="0.01" max="1000000" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={`${inputClass(!!errors.amount)} pl-7`} /></div></FormField></div><div className="mt-5"><FormField label="Category" error={errors.category}><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as Category })} className={`${inputClass(!!errors.category)} ${form.category ? "text-[#172033]" : "text-[#9aa3b5]"}`}><option value="" disabled>Select a category</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></FormField></div><div className="mt-5"><FormField label="Description" error={errors.description}><input value={form.description} maxLength={81} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Weekly groceries" className={inputClass(!!errors.description)} /></FormField></div><div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={closeModal} className="h-11 rounded-xl border border-[#dfe3eb] px-5 text-sm font-semibold text-[#606b7e] hover:bg-[#f7f8fb]">Cancel</button><button type="submit" className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3758f9] px-5 text-sm font-semibold text-white hover:bg-[#2948df]"><Check className="h-4 w-4" />{editing ? "Save changes" : "Add expense"}</button></div></form>
       </div></div>}
+      {exportOpen && <ExportDialog expenses={expenses} categories={CATEGORIES} onClose={() => setExportOpen(false)} onExported={showToast} />}
       {toast && <div role="status" className="animate-enter fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-xl bg-[#172033] px-4 py-3 text-sm font-medium text-white shadow-xl"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#42b9a2]"><Check className="h-3 w-3" /></span>{toast}</div>}
     </div>
   );
